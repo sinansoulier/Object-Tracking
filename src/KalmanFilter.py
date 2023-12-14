@@ -27,3 +27,5 @@ class KalmanFilter:
 
         self.x_k = x_k_minus + np.dot(K_k, (z_k - np.dot(self.H, x_k_minus)))
         self.P = np.dot((self.I - np.dot(K_k, self.H)), P_minus)
+
+        return self.x_k
