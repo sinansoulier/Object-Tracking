@@ -23,7 +23,7 @@ def detect(frame):
     #cv2.imshow('img_thresh', img_thresh)
 
     # Find contours
-    _ , contours, _= cv2.findContours(img_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _= cv2.findContours(img_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # Set the accepted minimum & maximum radius of a detected object
     min_radius_thresh= 3
