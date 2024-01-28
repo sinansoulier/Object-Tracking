@@ -26,3 +26,16 @@ class BoundingBox:
             return 0
         
         return (xB - xA) * (yB - yA)
+
+    def translation_from_center(self, new_center: Point) -> 'BoundingBox':
+        """
+        Returns a new BoundingBox, translated from the current BoundingBox, with the new center.
+
+        Args:
+            new_center: The new center.
+        Returns:
+            A new BoundingBox, translated from the current BoundingBox, with the new center.
+        """
+        dx = new_center.x - self.center.x
+        dy = new_center.y - self.center.y
+        return BoundingBox(self.left + dx, self.top + dy, self.width, self.height)
