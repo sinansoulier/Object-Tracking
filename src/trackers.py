@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import linear_sum_assignment
 
-from utils.tracker_utils import TrackerUtils
+from src.utils.tracker_utils import TrackerUtils
 from src.utils.tracker_type import TrackerType
 from src.utils.bounding_box import BoundingBox
 from src.utils.point import Point
@@ -164,7 +164,7 @@ class Trackers:
 
         return self.df
 
-    def update_tracking(tracks_frame: pd.DataFrame, detections_frame: pd.DataFrame, sim_matrix: np.ndarray) -> None:
+    def update_tracking(self, tracks_frame: pd.DataFrame, detections_frame: pd.DataFrame, sim_matrix: np.ndarray) -> None:
         """
         Updates the tracking.
         Args:
