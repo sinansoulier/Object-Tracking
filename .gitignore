@@ -160,4 +160,4 @@ cython_debug/
 #.idea/
 
 # Data
-# data/video_iou
+outputs/videos/

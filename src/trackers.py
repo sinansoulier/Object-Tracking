@@ -1,11 +1,14 @@
 import numpy as np
 import pandas as pd
+from tqdm.auto import tqdm
 from scipy.optimize import linear_sum_assignment
+from PIL import Image as Img
 
 from src.utils.tracker_utils import TrackerUtils
 from src.utils.tracker_type import TrackerType
 from src.utils.bounding_box import BoundingBox
 from src.utils.point import Point
+from src.utils.video import VideoUtils
 from src.KalmanFilter import KalmanFilter
 
 class Trackers:
@@ -23,11 +26,12 @@ class Trackers:
         """
         self.df['id'] = -1
 
-    def track(self, tracker_type: TrackerType) -> pd.DataFrame:
+    def track(self, tracker_type: TrackerType, video: np.ndarray = None) -> pd.DataFrame:
         """
         Matches tracks to detections, using the specified tracker type.
         Args:
             tracker_type (TrackerType): The type of tracker to use.
+            video (np.ndarray): The video, if using NN Hungarian Kalman.
         Returns:
             (pd.DataFrame): A pandas DataFrame containing the matches.
         """
@@ -38,6 +42,10 @@ class Trackers:
                 return self.hungarian_tracking()
             case TrackerType.HUNGARIAN_KALMAN:
                 return self.hungarian_kalman_tracking()
+            case TrackerType.NN_HUNGARIAN_KALMAN:
+                if video is None:
+                    raise ValueError("Video must be provided for NN Hungarian Kalman")
+                return self.nn_hungarian_kalman_tracking(video=video)
             case _:
                 raise ValueError(f"Invalid tracker type: {tracker_type}")
 
@@ -147,6 +155,64 @@ class Trackers:
             # Get similarity matrix between n and n+1
             sim_matrix = TrackerUtils.similarity_matrix(filtered_bboxes, detections_frame_bboxes)            
             self.update_tracking(tracks_frame, detections_frame, sim_matrix)
+            
+            # For all rows in the next frame that have an ID of -1, assign a new ID
+            for i, row in detections_frame.iterrows():
+                id = int(row['id'])
+                if id == -1:
+                    detections_frame.loc[i, 'id'] = detections_frame['id'].max() + 1
+                    kalman_filters_dict[int(detections_frame.loc[i, 'id'])] = KalmanFilter.new(BoundingBox.bbox_from_row(row).center)
+                else:
+                    center_point: Point = BoundingBox.bbox_from_row(row).center
+                    center = [[center_point.x], [center_point.y]]
+                    kalman_filters_dict[id].update(center)
+            
+            # Update the IDs in the original input DataFrame
+            self.df.loc[self.df['frame'] == frame + 1, 'id'] = detections_frame['id'].values
+
+        return self.df
+    
+    def nn_hungarian_kalman_tracking(self, video: np.ndarray) -> pd.DataFrame:
+        """
+        Matches tracks to detections using the Hungarian algorithm, with Kalman filters.
+        Returns:
+            (pd.DataFrame): A pandas DataFrame containing the matches.
+        """
+        frames = self.df['frame'].unique()        
+        kalman_filters_dict = {}
+
+        for frame in tqdm(range(1, frames.shape[0])):
+            if frame == 1:
+                # Assign IDs to the first frame
+                self.set_first_frame(frame)
+                for _, row in self.get_tracks(frame).iterrows():
+                    id = int(row['id'])
+                    kalman_filters_dict[id] = KalmanFilter.new(BoundingBox.bbox_from_row(row).center)
+
+            # Get current frame n
+            tracks_frame = self.get_tracks(frame)
+            filtered_bboxes = []
+            for i, row in tracks_frame.iterrows():
+                id = int(row['id'])
+                new_bbox = BoundingBox.bbox_from_row(row).apply_kalman_filter(kalman_filters_dict[id])
+                filtered_bboxes.append(new_bbox)
+            tracks_patches: list[Img.Image] = VideoUtils.patches_from_bbox_list(video[frame - 1], filtered_bboxes)
+            tracks_preprocessed_patches = list(map(TrackerUtils.preprocess_patch, tracks_patches))
+            tracks_features = TrackerUtils.extract_deep_features_from_patches(tracks_preprocessed_patches)
+
+            # Get next frame n+1
+            detections_frame = self.get_detections(frame)
+            detections_frame_bboxes: list[BoundingBox] = TrackerUtils.df_to_bbox_list(detections_frame)
+            detections_patches: list[Img.Image] = VideoUtils.patches_from_bbox_list(video[frame], detections_frame_bboxes)
+            detections_preprocessed_patches = list(map(TrackerUtils.preprocess_patch, detections_patches))
+            detections_features = TrackerUtils.extract_deep_features_from_patches(detections_preprocessed_patches)
+
+            # Get similarity matrix between n and n+1
+            sim_matrix = TrackerUtils.similarity_matrix(filtered_bboxes, detections_frame_bboxes)
+            feature_sim_matrix = TrackerUtils.feature_similarity_matrix(tracks_features, detections_features)
+
+            combined_sim_matrix = TrackerUtils.combined_similarity_matrices(sim_matrix, feature_sim_matrix)
+            self.update_tracking(tracks_frame, detections_frame, combined_sim_matrix)
             
             # For all rows in the next frame that have an ID of -1, assign a new ID
             for i, row in detections_frame.iterrows():

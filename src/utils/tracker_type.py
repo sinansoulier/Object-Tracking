@@ -7,3 +7,4 @@ class TrackerType(Enum):
     GREEDY = 1
     HUNGARIAN = 2
     HUNGARIAN_KALMAN = 3
+    NN_HUNGARIAN_KALMAN = 4

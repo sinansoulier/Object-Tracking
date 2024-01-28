@@ -8,10 +8,10 @@ class BoundingBox:
     A class representing a bounding box.
     """
     def __init__(self, left: int, top: int, width: int, height: int):
-        self.left = left
-        self.top = top
-        self.width = width
-        self.height = height
+        self.left: int = left
+        self.top: int = top
+        self.width: int = width
+        self.height: int = height
         self.center = Point(left + width / 2, top + height / 2)
 
     def print(self):

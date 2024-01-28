@@ -1,5 +1,10 @@
 import numpy as np
 import pandas as pd
+from scipy.spatial.distance import cosine
+import torch
+import torchvision
+from torchvision.models import resnet50, ResNet50_Weights
+from PIL import Image as Img
 
 from src.utils.bounding_box import BoundingBox
 
@@ -54,3 +59,89 @@ class TrackerUtils:
         """
         return list(map(lambda x: BoundingBox(x[0], x[1], x[2], x[3]),
                         df[['bb_left', 'bb_top', 'bb_width', 'bb_height']].values))
+
+    @staticmethod
+    def preprocess_patch(patch: Img.Image) -> torch.Tensor:
+        """
+        Preprocesses a patch.
+        Args:
+            patch (np.ndarray): The patch.
+        Returns:
+            (torch.Tensor): The preprocessed patch.
+        """
+        transform = torchvision.transforms.Compose([
+            torchvision.transforms.Resize((224, 224)),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                                             std=[0.229, 0.224, 0.225])
+        ])
+
+        patch = transform(patch)
+        patch = torch.unsqueeze(patch, 0)
+
+        return patch
+
+    @staticmethod
+    def extract_deep_features_from_patches(list_patches: list[torch.Tensor]) -> np.ndarray:
+        """
+        Extracts deep features from a patch.
+        Args:
+            patch (np.ndarray): The patch.
+        Returns:
+            (np.ndarray): The deep features.
+        """
+        device = 'cpu'
+        if torch.cuda.is_available():
+            device = 'cuda'
+        elif torch.backends.mps.is_available():
+            device = 'mps'
+        
+        model = resnet50(weights=ResNet50_Weights.DEFAULT).to(device)
+        model.eval()
+
+        batch = torch.cat(list_patches, dim=0).to(device)
+
+        with torch.no_grad():
+            features = model(batch)
+        
+        np_features = features.cpu().numpy()
+        return np_features.reshape((np_features.shape[0], -1))
+
+    @staticmethod
+    def feature_similarity(feature_1: np.ndarray, feature_2: np.ndarray) -> float:
+        """
+        Calculates the feature similarity between two features.
+        Args:
+            feature_1 (np.ndarray): The first feature.
+            feature_2 (np.ndarray): The second feature.
+        Returns:
+            (float): The feature similarity.
+        """
+        return 1 - cosine(feature_1, feature_2)
+
+    @staticmethod
+    def feature_similarity_matrix(feature_list_left: list[np.ndarray], feature_list_right: list[np.ndarray]) -> np.ndarray:
+        """
+        Calculates the feature similarity matrix between two lists of features.
+        Args:
+            feature_list_left (list[np.ndarray]): A list of features.
+            feature_list_right (list[np.ndarray]): A list of features.
+        Returns:
+            (np.ndarray): A numpy array containing the feature similarity matrix.
+        """
+        sim_matrix = np.zeros((len(feature_list_left), len(feature_list_right)))
+        for (i, feature_left) in enumerate(feature_list_left):
+            for (j, feature_right) in enumerate(feature_list_right):
+                sim_matrix[i, j] = TrackerUtils.feature_similarity(feature_left, feature_right)
+        return sim_matrix
+
+    def combined_similarity_matrices(similarity_matrix: np.ndarray, feature_similarity_matrix: np.ndarray, weights: list = [1, 1]) -> np.ndarray:
+        """
+        Combines the similarity matrix and the feature similarity matrix.
+        Args:
+            similarity_matrix (np.ndarray): The similarity matrix.
+            feature_similarity_matrix (np.ndarray): The feature similarity matrix.
+        Returns:
+            (np.ndarray): The combined similarity matrix.
+        """
+        return (weights[0] * similarity_matrix + weights[1] * feature_similarity_matrix) / sum(weights)
