@@ -4,6 +4,9 @@ import pandas as pd
 from src.utils.bounding_box import BoundingBox
 
 class TrackerUtils:
+    """
+    Utility class for the trackers.
+    """
     @staticmethod
     def IoU(bbox_1: BoundingBox, bbox_2: BoundingBox) -> float:
         """
@@ -12,10 +15,9 @@ class TrackerUtils:
             bbox_1 (BoundingBox): Object representing the bounding box, with attributes left, top, width, and height.
             bbox_2 (BoundingBox): Object representing the bounding box, with attributes left, top, width, and height.
         Returns:
-            The IoU of the two bounding boxes.
+            (float): The IoU of the two bounding boxes.
         """
         intersection_area = BoundingBox.intersection_area(bbox_1, bbox_2)
-        
         iou = intersection_area / float(bbox_1.area() + bbox_2.area() - intersection_area)
         
         if iou < 0.0:
@@ -30,9 +32,10 @@ class TrackerUtils:
         """
         Calculates the similarity matrix two list of bounding boxes.
         Args:
-            det_df: A pandas DataFrame containing the detections.
+            bbox_list_left (list[BoundingBox]): A list of bounding boxes.
+            bbox_list_right (list[BoundingBox]): A list of bounding boxes.
         Returns:
-            A numpy array of shape (num_detections, num_detections) containing the IoU of each detection pair.
+            (np.ndarray): A numpy array containing the similarity matrix.
         """
         sim_matrix = np.zeros((len(bbox_list_left), len(bbox_list_right)))
         for (i, bbox_left) in enumerate(bbox_list_left):
@@ -47,7 +50,7 @@ class TrackerUtils:
         Args:
             df (pd.DataFrame): A pandas DataFrame containing the detections.
         Returns:
-            list[BoundingBox]: A list of bounding boxes.
+            (list[BoundingBox]): A list of bounding boxes.
         """
         return list(map(lambda x: BoundingBox(x[0], x[1], x[2], x[3]),
                         df[['bb_left', 'bb_top', 'bb_width', 'bb_height']].values))

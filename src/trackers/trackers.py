@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import linear_sum_assignment
 
-from src.utils.tracker import TrackerUtils
+from utils.tracker_utils import TrackerUtils
 from src.utils.tracker_type import TrackerType
 from src.utils.bounding_box import BoundingBox
 from src.utils.point import Point
@@ -19,7 +19,7 @@ class Trackers:
 
     def reset(self) -> None:
         """
-        Resets the trackers.
+        Resets the tracker IDs.
         """
         self.df['id'] = -1
 
@@ -27,9 +27,9 @@ class Trackers:
         """
         Matches tracks to detections, using the specified tracker type.
         Args:
-            tracker_type: The type of tracker to use.
+            tracker_type (TrackerType): The type of tracker to use.
         Returns:
-            A pandas DataFrame containing the matches.
+            (pd.DataFrame): A pandas DataFrame containing the matches.
         """
         match tracker_type:
             case TrackerType.GREEDY:
@@ -44,9 +44,8 @@ class Trackers:
     def greedy_tracking(self) -> pd.DataFrame:
         """
         Matches tracks to detections.
-
         Returns:
-            A pandas DataFrame containing the matches.
+            (pd.DataFrame): A pandas DataFrame containing the matches.
         """
         frames = self.df['frame'].unique()
         for frame in range(1, frames.shape[0]):
@@ -86,9 +85,8 @@ class Trackers:
     def hungarian_tracking(self) -> pd.DataFrame:
         """
         Matches tracks to detections using the Hungarian algorithm.
-
         Returns:
-            A pandas DataFrame containing the matches.
+            (pd.DataFrame): A pandas DataFrame containing the matches.
         """
         frames = self.df['frame'].unique()
         
@@ -105,12 +103,7 @@ class Trackers:
             detections_frame_bboxes: list[BoundingBox] = TrackerUtils.df_to_bbox_list(detections_frame)
             # Get similarity matrix between n and n+1
             sim_matrix = TrackerUtils.similarity_matrix(tracks_frame_bboxes, detections_frame_bboxes)
-            
-            row_ind, col_ind = linear_sum_assignment(1 - sim_matrix)
-
-            # For all rows columns indices, assign the ID of the row index to the next frame
-            for i, j in zip(row_ind, col_ind):
-                detections_frame.iloc[j, 1] = tracks_frame.iloc[i, 1]
+            self.update_tracking(tracks_frame, detections_frame, sim_matrix)
             
             # For all rows in the next frame that have an ID of -1, assign a new ID
             for i, row in detections_frame.iterrows():
@@ -125,9 +118,8 @@ class Trackers:
     def hungarian_kalman_tracking(self) -> pd.DataFrame:
         """
         Matches tracks to detections using the Hungarian algorithm, with Kalman filters.
-
         Returns:
-            A pandas DataFrame containing the matches.
+            (pd.DataFrame): A pandas DataFrame containing the matches.
         """
         frames = self.df['frame'].unique()        
         kalman_filters_dict = {}
@@ -135,7 +127,7 @@ class Trackers:
         for frame in range(1, frames.shape[0]):
             if frame == 1:
                 # Assign IDs to the first frame
-                self.df.loc[self.df['frame'] == frame, 'id'] = np.arange(self.df[self.df['frame'] == frame].shape[0])
+                self.set_first_frame(frame)
                 for _, row in self.get_tracks(frame).iterrows():
                     id = int(row['id'])
                     kalman_filters_dict[id] = KalmanFilter.new(BoundingBox.bbox_from_row(row).center)
@@ -154,11 +146,7 @@ class Trackers:
 
             # Get similarity matrix between n and n+1
             sim_matrix = TrackerUtils.similarity_matrix(filtered_bboxes, detections_frame_bboxes)            
-            row_ind, col_ind = linear_sum_assignment(1 - sim_matrix)
-
-            # For all rows columns indices, assign the ID of the row index to the next frame
-            for i, j in zip(row_ind, col_ind):
-                detections_frame.iloc[j, 1] = tracks_frame.iloc[i, 1]
+            self.update_tracking(tracks_frame, detections_frame, sim_matrix)
             
             # For all rows in the next frame that have an ID of -1, assign a new ID
             for i, row in detections_frame.iterrows():
@@ -175,15 +163,36 @@ class Trackers:
             self.df.loc[self.df['frame'] == frame + 1, 'id'] = detections_frame['id'].values
 
         return self.df
+
+    def update_tracking(tracks_frame: pd.DataFrame, detections_frame: pd.DataFrame, sim_matrix: np.ndarray) -> None:
+        """
+        Updates the tracking.
+        Args:
+            tracks_frame (pd.DataFrame): A pandas DataFrame containing the tracks.
+            detections_frame (pd.DataFrame): A pandas DataFrame containing the detections.
+            sim_matrix (np.ndarray): A numpy array containing the similarity matrix.
+        """
+        row_ind, col_ind = linear_sum_assignment(1 - sim_matrix)
+
+        # For all rows columns indices, assign the ID of the row index to the next frame
+        for i, j in zip(row_ind, col_ind):
+            detections_frame.iloc[j, 1] = tracks_frame.iloc[i, 1]
+
+    def set_first_frame(self, frame: int) -> None:
+        """
+        Sets the first frame.
+        Args:
+            frame (int): The first frame.
+        """
+        self.df.loc[self.df['frame'] == frame, 'id'] = np.arange(self.df[self.df['frame'] == frame].shape[0])
     
     def get_tracks(self, n: int) -> pd.DataFrame:
         """
         Gets the tracks of a DataFrame.
-
         Args:
-            n: The number of frames.
+            n (int): The number of frames.
         Returns:
-            A pandas DataFrame containing the tracks.
+            (pd.DataFrame): A pandas DataFrame containing the tracks.
         """
         return self.df[self.df['frame'] == n]
     
@@ -191,8 +200,8 @@ class Trackers:
         """
         Gets the detections of a DataFrame.
         Args:
-            n: The number of frames.
+            n (int): The number of frames.
         Returns:
-            A pandas DataFrame containing the detections.
+            (pd.DataFrame): A pandas DataFrame containing the detections.
         """
         return self.df[self.df['frame'] == n + 1]

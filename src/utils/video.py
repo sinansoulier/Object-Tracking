@@ -5,16 +5,19 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 class VideoUtils:
+    """
+    Utility class for videos.
+    """
     @staticmethod
     def export_video_with_tracking(df: pd.DataFrame, folder_path: str, output: str, fps: int, frame_size: tuple) -> None:
         """
         Exports a video with tracking.
         Args:
-            df: A pandas DataFrame containing the detections.
-            folder_path: The path to the folder containing the images.
-            output: The path to the output video.
-            fps: The FPS of the output video.
-            frame_size: The frame size of the output video.
+            df (pd.DataFrame): A pandas DataFrame containing the detections.
+            folder_path (str): The path to the folder containing the images.
+            output (str): The path to the output video.
+            fps (int): The FPS of the output video.
+            frame_size (tuple): The frame size of the output video.
         """
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         video_writer = cv2.VideoWriter(output, fourcc, fps, frame_size)

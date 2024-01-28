@@ -3,6 +3,9 @@ import numpy as np
 from src.utils.point import Point
 
 class KalmanFilter:
+    """
+    A class representing a Kalman filter.
+    """
     def __init__(self, dt, u_x, u_y, std_acc, x_sdt_meas, y_sdt_meas, center: Point = None):
         self.u = [u_x, u_y]
         if center is not None:
@@ -21,11 +24,21 @@ class KalmanFilter:
         self.I = np.eye(self.A.shape[1])
 
     def predict(self):
+        """
+        Predicts the next state.
+        """
         x_k_minus = np.dot(self.A, self.x_k) + np.dot(self.B, self.u)
         P_minus = np.dot(np.dot(self.A, self.P), self.A.T) + self.Q
         return x_k_minus, P_minus
 
-    def update(self, z_k):
+    def update(self, z_k: list[float]):
+        """
+        Updates the state.
+        Args:
+            z_k (list[float]): The measurements.
+        Returns:
+            (np.ndarray): The updated state.
+        """
         x_k_minus, P_minus = self.predict()
         S_k = np.dot(np.dot(self.H, P_minus), self.H.T) + self.R
         K_k = np.dot(np.dot(P_minus, self.H.T), np.linalg.inv(S_k))
