@@ -2,6 +2,7 @@ import os
 import cv2
 import numpy as np
 import pandas as pd
+from tqdm.auto import tqdm
 
 class VideoUtils:
     @staticmethod
@@ -20,7 +21,9 @@ class VideoUtils:
 
         color = (0, 0, 255)
 
-        for i, filename in enumerate(sorted(os.listdir(folder_path))):
+        list_files = sorted(os.listdir(folder_path))
+        for i in tqdm(range(len(list_files))):
+            filename = list_files[i]
             if filename.endswith(".jpg") or filename.endswith(".png"):
                 image_path = os.path.join(folder_path, filename)
                 image = cv2.imread(image_path)

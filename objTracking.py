@@ -27,6 +27,7 @@ if __name__ == '__main__':
        
         if (len(centers) > 0):
             x_meas, y_meas = centers[0]
+            print(f"x_meas: {x_meas}, y_meas: {y_meas}")
 
             predicted_state = kf.predict()[0]
             estimated_state = kf.update([x_meas, y_meas])

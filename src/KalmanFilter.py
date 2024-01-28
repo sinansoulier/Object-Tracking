@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.utils.bounding_box import Point
+from src.utils.point import Point
 
 class KalmanFilter:
     def __init__(self, dt, u_x, u_y, std_acc, x_sdt_meas, y_sdt_meas, center: Point = None):
@@ -30,7 +30,22 @@ class KalmanFilter:
         S_k = np.dot(np.dot(self.H, P_minus), self.H.T) + self.R
         K_k = np.dot(np.dot(P_minus, self.H.T), np.linalg.inv(S_k))
 
+        # print(f"K_k: {K_k.shape}")
+        # print(f"H: {self.H.shape}")
+        # print(f"x_k_minus: {x_k_minus.shape}")
         self.x_k = x_k_minus + np.dot(K_k, (z_k - np.dot(self.H, x_k_minus)))
         self.P = np.dot((self.I - np.dot(K_k, self.H)), P_minus)
 
         return self.x_k
+    
+    @staticmethod
+    def new(center: Point) -> 'KalmanFilter':
+        return KalmanFilter(
+            dt=0.1,
+            u_x=1,
+            u_y=1,
+            std_acc=1,
+            x_sdt_meas=0.1,
+            y_sdt_meas=0.1,
+            center=center
+        )

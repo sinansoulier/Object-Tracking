@@ -1,7 +1,7 @@
-class Point:
-    def __init__(self, x: float, y: float):
-        self.x = x
-        self.y = y
+import pandas as pd
+
+from src.KalmanFilter import KalmanFilter
+from src.utils.point import Point
 
 class BoundingBox:
     def __init__(self, left: int, top: int, width: int, height: int):
@@ -27,6 +27,25 @@ class BoundingBox:
         
         return (xB - xA) * (yB - yA)
 
+    @staticmethod
+    def bbox_from_row(row: pd.Series) -> 'BoundingBox':
+        return BoundingBox(row['bb_left'], row['bb_top'], row['bb_width'], row['bb_height'])
+
+
+    def apply_kalman_filter(self, kalman_filter: KalmanFilter) -> 'BoundingBox':
+        """
+        Applies the Kalman filter to the current BoundingBox.
+
+        Args:
+            kalman_filer: The Kalman filter to apply.
+        Returns:
+            A new BoundingBox, with the Kalman filter applied.
+        """
+        predicted_state = kalman_filter.predict()[0]
+        new_center = Point(predicted_state[0][0], predicted_state[1][0])
+
+        return self.translation_from_center(new_center)
+    
     def translation_from_center(self, new_center: Point) -> 'BoundingBox':
         """
         Returns a new BoundingBox, translated from the current BoundingBox, with the new center.
