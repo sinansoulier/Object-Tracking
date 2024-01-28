@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from tqdm.auto import tqdm
 from scipy.spatial.distance import cosine
 import torch
 import torchvision
@@ -145,3 +146,38 @@ class TrackerUtils:
             (np.ndarray): The combined similarity matrix.
         """
         return (weights[0] * similarity_matrix + weights[1] * feature_similarity_matrix) / sum(weights)
+
+    @staticmethod
+    def get_yolo_tracks(video: np.array) -> pd.DataFrame:
+        """
+        Get tracks using YOLOv5 algorithm.
+        Args:
+            video (np.array): The video.
+        Returns:
+            (pd.DataFrame): The tracks.
+        """
+        model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+        df = pd.DataFrame(columns=['frame', 'id', 'bb_left', 'bb_top', 'bb_width', 'bb_height', 'conf', 'x', 'y', 'z'])
+        for frame in tqdm(range(video.shape[0])):
+            frame_image = video[frame]
+            frame_image = Img.fromarray(frame_image)
+            results = model(frame_image)
+            detections = results.xyxy[0].numpy()
+            # Filter for pedestrians (class ID for 'person' is usually 0 in COCO dataset)
+            pedestrian_boxes = detections[detections[:, 5] == 0]
+
+            for box in pedestrian_boxes:
+                left = box[0]
+                top = box[1]
+                right = box[2]
+                bottom = box[3]
+                width = right - left
+                height = bottom - top
+                bbox = BoundingBox(left, top, width, height)
+                if df.empty:
+                    df = pd.DataFrame({'frame': frame, 'id': -1, 'bb_left': bbox.left, 'bb_top': bbox.top, 'bb_width': bbox.width,
+                                'bb_height': bbox.height, 'conf': box[4], 'x': -1, 'y': -1, 'z': -1}, index=[0])
+                else:
+                    df = pd.concat([df, pd.DataFrame({'frame': frame + 1, 'id': -1, 'bb_left': bbox.left, 'bb_top': bbox.top, 'bb_width': bbox.width,
+                                'bb_height': bbox.height, 'conf': box[4], 'x': -1, 'y': -1, 'z': -1}, index=[0])], ignore_index=True)
+        return df

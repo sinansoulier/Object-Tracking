@@ -161,3 +161,6 @@ cython_debug/
 
 # Data
 outputs/videos/
+
+# Weight
+*.pt
