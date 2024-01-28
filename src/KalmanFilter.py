@@ -1,9 +1,14 @@
 import numpy as np
 
+from src.utils.bounding_box import Point
+
 class KalmanFilter:
-    def __init__(self, dt, u_x, u_y, std_acc, x_sdt_meas, y_sd_meas): 
+    def __init__(self, dt, u_x, u_y, std_acc, x_sdt_meas, y_sdt_meas, center: Point = None):
         self.u = [u_x, u_y]
-        self.x_k = np.array([[0], [0], [0], [0]])
+        if center is not None:
+            self.x_k = np.array([[center.x], [center.y], [0], [0]])
+        else:
+            self.x_k = np.array([[0], [0], [0], [0]])
         self.A = np.array([[1, 0, dt, 0], [0, 1, 0, dt], [0, 0, 1, 0], [0, 0, 0, 1]])
         self.B = np.array([[(dt**2)/2, 0], [0, (dt**2)/2], [dt, 0], [0, dt]])
         self.H = np.array([[1, 0, 0, 0], [0, 1, 0, 0]])
@@ -11,7 +16,7 @@ class KalmanFilter:
                            [0, (dt**4)/4, 0, (dt**3)/2],
                            [(dt**3)/2, 0, dt**2, 0],
                            [0, (dt**3)/2, 0, dt**2]]) * std_acc**2
-        self.R = np.array([[x_sdt_meas**2, 0], [0, y_sd_meas**2]])
+        self.R = np.array([[x_sdt_meas**2, 0], [0, y_sdt_meas**2]])
         self.P = np.eye(self.A.shape[1])
         self.I = np.eye(self.A.shape[1])
 
