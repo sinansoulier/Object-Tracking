@@ -30,9 +30,6 @@ class KalmanFilter:
         S_k = np.dot(np.dot(self.H, P_minus), self.H.T) + self.R
         K_k = np.dot(np.dot(P_minus, self.H.T), np.linalg.inv(S_k))
 
-        # print(f"K_k: {K_k.shape}")
-        # print(f"H: {self.H.shape}")
-        # print(f"x_k_minus: {x_k_minus.shape}")
         self.x_k = x_k_minus + np.dot(K_k, (z_k - np.dot(self.H, x_k_minus)))
         self.P = np.dot((self.I - np.dot(K_k, self.H)), P_minus)
 
