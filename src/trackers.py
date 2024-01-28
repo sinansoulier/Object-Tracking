@@ -129,9 +129,7 @@ class Trackers:
         Returns:
             A pandas DataFrame containing the matches.
         """
-        frames = self.df['frame'].unique()
-        
-        pos_dict = {}
+        frames = self.df['frame'].unique()        
         kalman_filters_dict = {}
 
         for frame in range(1, frames.shape[0]):
