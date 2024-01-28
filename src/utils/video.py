@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-class Video:
+class VideoUtils:
     @staticmethod
     def export_video_with_tracking(df: pd.DataFrame, folder_path: str, output: str, fps: int, frame_size: tuple) -> None:
         """
